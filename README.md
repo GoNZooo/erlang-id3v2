@@ -1,4 +1,4 @@
-mp3
+id3v2
 =====
 
 Attempt at extracting ID3v2 tags from mp3s, exercise in binary pattern matching.
