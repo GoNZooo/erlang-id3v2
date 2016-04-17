@@ -67,9 +67,15 @@ id3_tag_frames(<<ID:4/binary, Size:32, _Flag1,
                  Data:Size/binary, Rest/binary>>,
                Remaining, Output) ->
     TextSize = Size - 2,
+    UnicodeTextSize = Size - 5,
+    UnicodeBigger = Size - 4,
 
     {Encoding, TagData} = case Data of
-                              <<1, Unicode:TextSize/binary, 0>> ->
+                              <<1, 255, 254, Unicode:UnicodeTextSize/binary, 0, 0>> ->
+                                  {{encoding, unicode}, Unicode};
+                              <<1, Unicode:UnicodeTextSize/binary, 255, 254, 0, 0>> ->
+                                  {{encoding, unicode}, Unicode};
+                              <<1, 255, 254, Unicode:UnicodeBigger/binary, 0>> ->
                                   {{encoding, unicode}, Unicode};
                               <<0, Latin1:TextSize/binary, 0>> ->
                                   {{encoding, latin1}, Latin1};
