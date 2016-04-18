@@ -41,29 +41,38 @@ id3_read_tags(File, Size) ->
     {ok, Data} = file:read(File, Size),
     Data.
 
--spec id3_header(<<_:80>>) -> #{version_major => integer(),
-                                version_minor => integer(),
-                                size => integer(),
-                                unsynchronisation => integer(),
-                                extended => integer(),
-                                experimental => integer()}.
+-spec id3_header(<<_:80>>) -> #{version_major => non_neg_integer(),
+                                version_minor => non_neg_integer(),
+                                size => pos_integer(),
+                                unsynchronisation => non_neg_integer(),
+                                extended => non_neg_integer(),
+                                experimental => non_neg_integer()}.
 id3_header(<<"ID3", Major, Minor, 2#00000:5,
              Unsynch:1, Ext:1, Exp:1, Size:32/bitstring>>) ->
     TagSize = id3_tag_size(Size),
     #{version_major => Major, version_minor => Minor, size => TagSize,
       unsynchronisation => Unsynch, extended => Ext, experimental => Exp}.
 
+-spec id3_tag_size(binary()) -> pos_integer().
 id3_tag_size(Bin) when is_binary(Bin) ->
     id3_tag_size(Bin, <<>>, 0).
 
+-spec id3_tag_size(binary(), binary(), non_neg_integer()) -> pos_integer().
 id3_tag_size(<<>>, <<Size:28>>, _TotalSize) ->
     Size;
 id3_tag_size(<<_Ignored:1, Size:7/bitstring, Rest/binary>>, Output, TotalSize) ->
     id3_tag_size(Rest, <<Output:TotalSize/bitstring, Size:7/bitstring>>, TotalSize + 7).
 
+-type tag_data() :: {<<_:32>>, tag_encoding(), binary()}.
+-type tag_encoding() :: {encoding, not_applicable}
+                      | {encoding, latin1}
+                      | {encoding, unicode}.
+
+-spec id3_tag_frames(binary(), pos_integer()) -> [tag_data()].
 id3_tag_frames(Data, TotalSize) ->
     id3_tag_frames(Data, TotalSize, []).
 
+-spec id3_tag_frames(binary(), integer(), [tag_data()]) -> [tag_data()].
 id3_tag_frames(<<>>, _, Output) ->
     Output;
 id3_tag_frames(<<32#0:32, _/binary>>, _, Output) ->
