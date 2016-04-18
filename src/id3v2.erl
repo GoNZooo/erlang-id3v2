@@ -31,14 +31,22 @@ main([Filename]) ->
 %% Internal functions
 %%====================================================================
 
+-spec id3_read_header(file:io_device()) -> <<_:80>>.
 id3_read_header(File) ->
     {ok, Data} = file:read(File, 10),
     Data.
 
+-spec id3_read_tags(file:io_device(), non_neg_integer()) -> binary().
 id3_read_tags(File, Size) ->
     {ok, Data} = file:read(File, Size),
     Data.
 
+-spec id3_header(<<_:80>>) -> #{version_major => integer(),
+                                version_minor => integer(),
+                                size => integer(),
+                                unsynchronisation => integer(),
+                                extended => integer(),
+                                experimental => integer()}.
 id3_header(<<"ID3", Major, Minor, 2#00000:5,
              Unsynch:1, Ext:1, Exp:1, Size:32/bitstring>>) ->
     TagSize = id3_tag_size(Size),
@@ -71,11 +79,11 @@ id3_tag_frames(<<ID:4/binary, Size:32, _Flag1,
     UnicodeBigger = Size - 4,
 
     {Encoding, TagData} = case Data of
-                              <<1, 255, 254, Unicode:UnicodeTextSize/binary, 0, 0>> ->
+                              <<16#01fe:16, Unicode:UnicodeTextSize/binary, 0:16>> ->
                                   {{encoding, unicode}, Unicode};
-                              <<1, Unicode:UnicodeTextSize/binary, 255, 254, 0, 0>> ->
+                              <<1, Unicode:UnicodeTextSize/binary, 16#ffee00:24>> ->
                                   {{encoding, unicode}, Unicode};
-                              <<1, 255, 254, Unicode:UnicodeBigger/binary, 0>> ->
+                              <<16#01fe:16, Unicode:UnicodeBigger/binary, 0>> ->
                                   {{encoding, unicode}, Unicode};
                               <<0, Latin1:TextSize/binary, 0>> ->
                                   {{encoding, latin1}, Latin1};
@@ -83,11 +91,14 @@ id3_tag_frames(<<ID:4/binary, Size:32, _Flag1,
                                   {{encoding, not_applicable}, Data}
                           end,
 
-    id3_tag_frames(Rest, Remaining - Size, [{ID, Encoding, TagData} | Output]).
+    id3_tag_frames(Rest, Remaining - Size,
+                   [{ID, Encoding, TagData} | Output]).
 
 %%id3_tag_extra_size(Compressed, Encrypted, Grouped) ->
 %%    Compressed * 4 + Encrypted + Grouped.
 
+-spec id3_check_version(non_neg_integer(), non_neg_integer()) ->
+                               ok | {error, unsupported_version}.
 id3_check_version(3, 0) ->
     ok;
 id3_check_version(_, _) ->
