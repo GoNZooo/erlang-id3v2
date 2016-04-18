@@ -8,6 +8,7 @@
 %%====================================================================
 
 %% escript Entry point
+-spec main([string()]) -> ok.
 main([]) ->
     io:format("No arguments given.~n");
 main([Filename]) ->
